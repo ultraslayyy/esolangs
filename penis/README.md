@@ -29,7 +29,7 @@ peniscc -c code.txt out.bin
 # Encode
 peniscc in.txt out.penis
 # or (mark explicitly as encode so input can be a .penis input)
-peniscc in.penis out.penis
+peniscc -e in.penis out.penis
 
 # Estimate output size
 peniscc -s in.bin
