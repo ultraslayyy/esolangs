@@ -8,10 +8,6 @@ int has_extension(const char *filename) {
 
     if (strcmp(dot, ".penis") == 0) {
         return 1;
-    } else if (strcmp(dot, ".peen") == 0) {
-        return 1;
-    } else if (strcmp(dot, ".peenar")) {
-        return 1;
     }
 
     return 0;
@@ -44,7 +40,7 @@ int read_token(FILE *in) {
 }
 
 void compile_file(const char *input, const char *output) {
-    FILE *in = fopen(input, "r");
+    FILE *in = fopen(input, "rb");
     if (!in) {
         perror("fopen input");
         exit(1);
@@ -57,48 +53,100 @@ void compile_file(const char *input, const char *output) {
         exit(1);
     }
 
+    setvbuf(in, NULL, _IOFBF, 1 << 20);
+    setvbuf(out, NULL, _IOFBF, 1 << 20);
+
+    unsigned char inbuf[1 << 15];
+    unsigned char outbuf[1 << 15];
+    size_t outpos = 0;
+
+    int state = 0;
+    int bangs = 0;
+
     int prev = -1;
     int first = 1;
 
     unsigned char byte = 0;
     int bit_pos = 0;
 
-    while (1) {
-        int bangs = read_token(in);
-        if (bangs < 0) break;
+    size_t n;
+    while ((n = fread(inbuf, 1, sizeof(inbuf), in)) > 0) {
+        for (size_t i = 0; i < n; ++i) {
+            unsigned char c = inbuf[i];
 
-        int bit;
+            switch (state) {
+                case 0:
+                    state = (c == 'p') ? 1 : 0;
+                    break;
+                case 1:
+                    state = (c == 'e') ? 2 : 0;
+                    break;
+                case 2:
+                    state = (c == 'n') ? 3 : 0;
+                    break;
+                case 3:
+                    state = (c == 'i') ? 4 : 0;
+                    break;
+                case 4:
+                    if (c == 's') {
+                        state = 5;
+                        bangs = 0;
+                    } else {
+                        state = 0;
+                    }
+                    break;
+                case 5:
+                    if (c == '!') {
+                        bangs++;
+                    } else {
+                        int bit;
 
-        if (first) {
-            bit = (bangs == 0) ? 0 : 1;
-            first = 0;
-        } else {
-            int diff = bangs - prev;
-            if (diff == 1) {
-                bit = 0;
-            } else if (diff == 2) {
-                bit = 1;
-            } else {
-                fprintf(stderr, "Invalid jump (diff=%d)\n", diff);
-                exit(1);
+                        if (first) {
+                            bit = (bangs != 0);
+                            first = 0;
+                        } else {
+                            int diff = bangs - prev;
+                            if (diff == 1) {
+                                bit = 0;
+                            } else if (diff == 2) {
+                                bit = 1;
+                            } else {
+                                fprintf(stderr, "Invalid jump (diff=%d)\n", diff);
+                                exit(1);
+                            }
+                        }
+
+                        prev = bangs;
+
+                        byte = (byte << 1) | bit;
+                        bit_pos++;
+
+                        if (bit_pos == 8) {
+                            outbuf[outpos++] = byte;
+                            if (outpos == sizeof(outbuf)) {
+                                fwrite(outbuf, 1, outpos, out);
+                                outpos = 0;
+                            }
+
+                            byte = 0;
+                            bit_pos = 0;
+                        }
+
+                        state = 0;
+                        i--;
+                    }
+                    break;
             }
-        }
-
-        prev = bangs;
-
-        byte = (byte << 1) | bit;
-        bit_pos++;
-
-        if (bit_pos == 8) {
-            fwrite(&byte, 1, 1, out);
-            byte = 0;
-            bit_pos = 0;
         }
     }
 
     if (bit_pos > 0) {
         byte <<= (8 - bit_pos);
-        fwrite(&byte, 1, 1, out);
+        outbuf[outpos++] = byte;
+    }
+
+    if (outpos > 0) {
+        fwrite(outbuf, 1, outpos, out);
     }
 
     fclose(in);
@@ -113,37 +161,76 @@ void encode_file(const char *input, const char *output) {
         exit(1);
     }
 
-    FILE *out = fopen(output, "w");
+    FILE *out = fopen(output, "wb");
     if (!out) {
         perror("fopen output");
         fclose(in);
         exit(1);
     }
 
+    setvbuf(in, NULL, _IOFBF, 1 << 20);
+    setvbuf(out, NULL, _IOFBF, 1 << 20);
+
+    unsigned char inbuf[1 << 15];
+    unsigned char outbuf[1 << 15];
+    size_t outpos = 0;
+
+    char bangbuf[1024];
+    memset(bangbuf, '!', sizeof(bangbuf));
+
     int prev_bangs = 0;
     int first = 1;
 
-    int byte;
-    while ((byte = fgetc(in)) != EOF) {
-        for (int i = 7; i >= 0; --i) {
-            int bit = (byte >> i) & 1;
+    size_t n;
+    while ((n = fread(inbuf, 1, sizeof(inbuf), in)) > 0) {
+        for (size_t k = 0; k < n; ++k) {
+            unsigned char byte = inbuf[k];
 
-            int bangs;
-            if (first) {
-                bangs = bit ? 1 : 0;
-                first = 0;
-            } else {
-                bangs = prev_bangs + (bit ? 2 : 1);
+            for (int i = 7; i >= 0; --i) {
+                int bit = (byte >> i) & 1;
+
+                int bangs;
+                if (first) {
+                    bangs = bit ? 1 : 0;
+                    first = 0;
+                } else {
+                    bangs = prev_bangs + (bit ? 2 : 1);
+                }
+
+                if (outpos + 5 >= sizeof(outbuf)) {
+                    fwrite(outbuf, 1, outpos, out);
+                    outpos = 0;
+                }
+                memcpy(outbuf + outpos, "penis", 5);
+                outpos += 5;
+
+                int remaining = bangs;
+                while (remaining > 0) {
+                    int chunk = remaining > 1024 ? 1024 : remaining;
+
+                    if (outpos + chunk >= sizeof(outbuf)) {
+                        fwrite(outbuf, 1, outpos, out);
+                        outpos = 0;
+                    }
+
+                    memcpy(outbuf + outpos, bangbuf, chunk);
+                    outpos += chunk;
+                    remaining -= chunk;
+                }
+
+                if (outpos + 1 >= sizeof(outbuf)) {
+                    fwrite(outbuf, 1, outpos, out);
+                    outpos = 0;
+                }
+                outbuf[outpos++] = ' ';
+
+                prev_bangs = bangs;
             }
-
-            fprintf(out, "penis");
-            for (int j = 0; j < bangs; ++j) {
-                fputc('!', out);
-            }
-            fputc(' ', out);
-
-            prev_bangs = bangs;
         }
+    }
+
+    if (outpos > 0) {
+        fwrite(outbuf, 1, outpos, out);
     }
 
     fclose(in);
@@ -154,11 +241,11 @@ void encode_file(const char *input, const char *output) {
 char *format_size(long long bytes) {
     static char buf[64];
 
-    const char *units[] = {"B", "KB", "MB", "GB"};
+    const char *units[] = {"B", "KB", "MB", "GB", "TB", "PB"};
     int i = 0;
     double size = (double)bytes;
 
-    while (size > 1024 && i < 3) {
+    while (size > 1024 && i < 5) {
         size /= 1024;
         i++;
     }

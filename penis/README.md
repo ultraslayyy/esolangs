@@ -7,14 +7,14 @@ Ever wanted to code like the game penis? Penis makes this possible. It's quite s
   `penis! penis!! penis!!! penis!!!! penis!!!!!! penis!!!!!!! penis!!!!!!!!!`<br>
   `test.penis` is an example with comments
 
-That's it. The file extensions are `.penis`, `.peen`, or `.peenar`.
+That's it. The file extension is `.penis`.
 
 ## Compiler
 
 > [!NOTE]
-> To build the compiler just use
+> To build the compiler use:
 > ```sh
-> gcc compiler.c -o peniscc
+> gcc -O3 -march=native -flto compiler.c -o peniscc
 > ```
 
 The compiler is straightforward.
