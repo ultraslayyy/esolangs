@@ -21,7 +21,7 @@ The compiler is straightforward.
 ```sh
 # Compile
 peniscc code.penis out.txt
-# or (mark explicity as compile so input can be any extension)
+# or (mark explicity as compile so input can be any extension, in case you hate .penis for some reason)
 peniscc -c code.txt out.bin
 
 # Encode
@@ -31,7 +31,11 @@ peniscc in.penis out.penis
 
 # Estimate output size
 peniscc -s in.bin
+# or fast estimation -- enc = 5n + 1.5 * (n(n + 1) / 2), (enc is output size, n is bit count of original file)
+peniscc -s --fast in.bin
 ```
+
+The compile step is aided by AVX2, which is automatically disabled if your cpu does not support it. If you'd like to not use it (for whatever reason), just add the `--no-hints` flag.
 
 ## Examples
 
