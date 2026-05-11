@@ -1,5 +1,7 @@
 # Penis
 
+[Esolangs page](https://esolangs.org/wiki/Penis)
+
 Ever wanted to code like the game penis? Penis makes this possible. It's quite simple too:
 - Start with `penis` (0) or `penis!` (1)
 - For each new bit, add an exclamation mark after `penis`. For instance:<br>
@@ -27,7 +29,7 @@ peniscc -c code.txt out.bin
 # Encode
 peniscc in.txt out.penis
 # or (mark explicitly as encode so input can be a .penis input)
-peniscc in.penis out.penis
+peniscc -e in.penis out.penis
 
 # Estimate output size
 peniscc -s in.bin
